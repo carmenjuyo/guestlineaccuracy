@@ -86,7 +86,7 @@ def create_excel_download(combined_df, base_filename, past_accuracy_rn, past_acc
         worksheet_accuracy.conditional_format('C3:C4', {'type': 'cell', 'criteria': 'between', 'minimum': 0.96, 'maximum': 0.9799, 'format': format_yellow})
         worksheet_accuracy.conditional_format('C3:C4', {'type': 'cell', 'criteria': '>=', 'value': 0.98, 'format': format_green})
 
-        # Write the combined past and future results to a sinAFe sheet
+        # Write the combined past and future results to a single sheet
         if not combined_df.empty:
             # Ensure percentage columns are properly formatted as decimals
             combined_df['Abs RN Accuracy'] = combined_df['Abs RN Accuracy'].str.rstrip('%').astype('float') / 100
@@ -138,14 +138,16 @@ def main():
     col1, col2 = st.columns(2)
     with col1:
         data_file = st.file_uploader("Upload History and Forecast (.xlsx or .csv)", type=['xlsx', 'csv'])
-        hotel_code = st.text_input("Enter Hotel Code (Sheet Name) - optional if the file contains a sinAFe sheet:")
     with col2:
         csv_file = st.file_uploader("Upload Daily Totals Extract from Support UI", type=['csv'])
 
-    # When files are uploaded
-    if data_file and csv_file:
+    # Show hotel code input and message only if the file is an xlsx
+    if data_file and data_file.name.endswith('.xlsx'):
+        hotel_code = st.text_input("Enter Hotel Code (Sheet Name) - optional if the file contains a single sheet:")
         st.write("Files uploaded successfully. You can now choose to define the Hotel Code or proceed with processing the data.")
 
+    # When both files are uploaded
+    if data_file and csv_file:
         # Display the process button
         if st.button("Process Data"):
             # Initialize progress bar
@@ -153,7 +155,7 @@ def main():
             
             try:
                 # Read the data from either xlsx or csv
-                xlsx_df = read_data(data_file, hotel_code if hotel_code else None)
+                xlsx_df = read_data(data_file, hotel_code if 'hotel_code' in locals() else None)
             except ValueError as e:
                 st.error(f"Error reading data file: {e}")
                 return
