@@ -20,9 +20,23 @@ def read_data(file, sheet_name=None):
     else:
         raise ValueError("Unsupported file format. Please upload a .xlsx or .csv file.")
     
-    df = df[['Date', 'Total', 'TotalRevenue']]  # Assume columns are named exactly this
+    # Check if the expected columns are in the DataFrame
+    expected_columns = ['Date', 'Total', 'TotalRevenue']
+    for col in expected_columns:
+        if col not in df.columns:
+            raise ValueError(f"Expected column '{col}' not found in the uploaded file.")
+
+    df = df[expected_columns]
     df.columns = ['date', 'GL RNs', 'GL Rev']  # Rename columns for consistency
-    df['date'] = pd.to_datetime(df['date']).dt.date
+    
+    try:
+        df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.date
+    except Exception as e:
+        raise ValueError(f"Error converting 'Date' column to datetime: {e}")
+    
+    if df['date'].isnull().any():
+        raise ValueError("Some dates could not be parsed. Please ensure that the 'Date' column is in a valid date format.")
+    
     return df
 
 # Define color coding for accuracy values
@@ -136,8 +150,12 @@ def main():
             # Initialize progress bar
             progress_bar = st.progress(0)
             
-            # Read the data from either xlsx or csv
-            xlsx_df = read_data(data_file, hotel_code if hotel_code else None)
+            try:
+                # Read the data from either xlsx or csv
+                xlsx_df = read_data(data_file, hotel_code if hotel_code else None)
+            except ValueError as e:
+                st.error(f"Error reading data file: {e}")
+                return
             
             # Update progress bar
             progress_bar.progress(25)
