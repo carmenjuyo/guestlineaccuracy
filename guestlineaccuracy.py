@@ -21,7 +21,7 @@ def read_data(file, sheet_name=None):
         raise ValueError("Unsupported file format. Please upload a .xlsx or .csv file.")
     
     # Check if the expected columns are in the DataFrame
-    expected_columns = ['Date', 'Total', 'TotalRevenue']
+    expected_columns = ['Date', 'Total', 'Accomm']
     for col in expected_columns:
         if col not in df.columns:
             raise ValueError(f"Expected column '{col}' not found in the uploaded file.")
