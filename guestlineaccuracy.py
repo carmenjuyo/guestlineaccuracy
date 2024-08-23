@@ -8,12 +8,17 @@ from io import BytesIO
 # Set page layout to wide
 st.set_page_config(layout="wide", page_title="Guestline Daily Variance and Accuracy Calculator")
 
-# Define the function to read from XLSX
-def read_xlsx(file, sheet_name=None):
-    if sheet_name:
-        df = pd.read_excel(file, sheet_name=sheet_name)
+# Define the function to read from XLSX or CSV
+def read_data(file, sheet_name=None):
+    if file.name.endswith('.xlsx'):
+        if sheet_name:
+            df = pd.read_excel(file, sheet_name=sheet_name)
+        else:
+            df = pd.read_excel(file)  # This reads the first sheet by default
+    elif file.name.endswith('.csv'):
+        df = pd.read_csv(file)
     else:
-        df = pd.read_excel(file)  # This reads the first sheet by default
+        raise ValueError("Unsupported file format. Please upload a .xlsx or .csv file.")
     
     df = df[['Date', 'Total', 'TotalRevenue']]  # Assume columns are named exactly this
     df.columns = ['date', 'GL RNs', 'GL Rev']  # Rename columns for consistency
@@ -117,13 +122,13 @@ def main():
     # File uploaders in columns
     col1, col2 = st.columns(2)
     with col1:
-        xlsx_file = st.file_uploader("Upload History and Forecast .xlsx", type=['xlsx'])
+        data_file = st.file_uploader("Upload History and Forecast (.xlsx or .csv)", type=['xlsx', 'csv'])
         hotel_code = st.text_input("Enter Hotel Code (Sheet Name) - optional if the file contains a single sheet:")
     with col2:
         csv_file = st.file_uploader("Upload Daily Totals Extract from Support UI", type=['csv'])
 
     # When files are uploaded
-    if xlsx_file and csv_file:
+    if data_file and csv_file:
         st.write("Files uploaded successfully. You can now choose to define the Hotel Code or proceed with processing the data.")
 
         # Display the process button
@@ -131,8 +136,8 @@ def main():
             # Initialize progress bar
             progress_bar = st.progress(0)
             
-            # Read the specified sheet from the XLSX file, or default to the first sheet
-            xlsx_df = read_xlsx(xlsx_file, hotel_code if hotel_code else None)
+            # Read the data from either xlsx or csv
+            xlsx_df = read_data(data_file, hotel_code if hotel_code else None)
             
             # Update progress bar
             progress_bar.progress(25)
