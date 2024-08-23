@@ -30,7 +30,8 @@ def read_data(file, sheet_name=None):
     df.columns = ['date', 'GL RNs', 'GL Rev']  # Rename columns for consistency
     
     try:
-        df['date'] = pd.to_datetime(df['date'], errors='coerce').dt.date
+        # Assuming the date format in your CSV is "dd/mm/yyyy"
+        df['date'] = pd.to_datetime(df['date'], format='%d/%m/%Y', errors='coerce').dt.date
     except Exception as e:
         raise ValueError(f"Error converting 'Date' column to datetime: {e}")
     
