@@ -141,10 +141,20 @@ def main():
     with col2:
         csv_file = st.file_uploader("Upload Daily Totals Extract from Support UI", type=['csv'])
 
-    # Show hotel code input and message only if the file is an xlsx
+    # Only proceed with further checks if an xlsx file is uploaded
     if data_file and data_file.name.endswith('.xlsx'):
-        hotel_code = st.text_input("Enter Hotel Code (Sheet Name) - optional if the file contains a single sheet:")
-        st.write("Files uploaded successfully. You can now choose to define the Hotel Code or proceed with processing the data.")
+        try:
+            # Check the number of sheets in the uploaded xlsx file
+            excel_file = pd.ExcelFile(data_file)
+            sheet_count = len(excel_file.sheet_names)
+
+            # Display hotel code input and success message only if the xlsx file contains multiple sheets
+            if sheet_count > 1:
+                hotel_code = st.text_input("Enter Hotel Code (Sheet Name) - optional if the file contains a single sheet:")
+                st.write("Files uploaded successfully. You can now choose to define the Hotel Code or proceed with processing the data.")
+        except Exception as e:
+            st.error(f"Error processing the xlsx file: {e}")
+            return
 
     # When both files are uploaded
     if data_file and csv_file:
