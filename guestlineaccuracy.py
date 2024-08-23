@@ -27,7 +27,7 @@ def read_data(file, sheet_name=None):
             raise ValueError(f"Expected column '{col}' not found in the uploaded file.")
 
     df = df[expected_columns]
-    df.columns = ['date', 'GL RNs', 'GL Rev']  # Rename columns for consistency
+    df.columns = ['date', 'AF RNs', 'AF Rev']  # Rename columns for consistency
     
     try:
         # Adjusted to ignore the time component in the date format
@@ -86,7 +86,7 @@ def create_excel_download(combined_df, base_filename, past_accuracy_rn, past_acc
         worksheet_accuracy.conditional_format('C3:C4', {'type': 'cell', 'criteria': 'between', 'minimum': 0.96, 'maximum': 0.9799, 'format': format_yellow})
         worksheet_accuracy.conditional_format('C3:C4', {'type': 'cell', 'criteria': '>=', 'value': 0.98, 'format': format_green})
 
-        # Write the combined past and future results to a single sheet
+        # Write the combined past and future results to a sinAFe sheet
         if not combined_df.empty:
             # Ensure percentage columns are properly formatted as decimals
             combined_df['Abs RN Accuracy'] = combined_df['Abs RN Accuracy'].str.rstrip('%').astype('float') / 100
@@ -101,8 +101,8 @@ def create_excel_download(combined_df, base_filename, past_accuracy_rn, past_acc
 
             # Format columns in the "Daily Variance Detail" sheet
             worksheet_combined.set_column('A:A', None, format_whole)  # Date
-            worksheet_combined.set_column('B:B', None, format_whole)  # GL RNs
-            worksheet_combined.set_column('C:C', None, format_number)  # GL Rev
+            worksheet_combined.set_column('B:B', None, format_whole)  # AF RNs
+            worksheet_combined.set_column('C:C', None, format_number)  # AF Rev
             worksheet_combined.set_column('D:D', None, format_whole)  # Juyo RN
             worksheet_combined.set_column('E:E', None, format_number)  # Juyo Rev
             worksheet_combined.set_column('F:F', None, format_whole)  # RN Diff
@@ -138,7 +138,7 @@ def main():
     col1, col2 = st.columns(2)
     with col1:
         data_file = st.file_uploader("Upload History and Forecast (.xlsx or .csv)", type=['xlsx', 'csv'])
-        hotel_code = st.text_input("Enter Hotel Code (Sheet Name) - optional if the file contains a single sheet:")
+        hotel_code = st.text_input("Enter Hotel Code (Sheet Name) - optional if the file contains a sinAFe sheet:")
     with col2:
         csv_file = st.file_uploader("Upload Daily Totals Extract from Support UI", type=['csv'])
 
@@ -183,19 +183,19 @@ def main():
             merged_df = pd.merge(xlsx_df, csv_df, left_on='date', right_on='arrivalDate')
             
             # Calculate discrepancies for rooms and revenue
-            merged_df['RN Diff'] = merged_df['Juyo RN'] - merged_df['GL RNs']
-            merged_df['Rev Diff'] = merged_df['Juyo Rev'] - merged_df['GL Rev']
+            merged_df['RN Diff'] = merged_df['Juyo RN'] - merged_df['AF RNs']
+            merged_df['Rev Diff'] = merged_df['Juyo Rev'] - merged_df['AF Rev']
             
             # Calculate absolute accuracy percentages with handling for 0/0 cases
             merged_df['Abs RN Accuracy'] = merged_df.apply(
-                lambda row: 100.0 if row['GL RNs'] == 0 and row['Juyo RN'] == 0 else 
-                            (1 - abs(row['RN Diff']) / row['GL RNs']) * 100 if row['GL RNs'] != 0 else 0.0,
+                lambda row: 100.0 if row['AF RNs'] == 0 and row['Juyo RN'] == 0 else 
+                            (1 - abs(row['RN Diff']) / row['AF RNs']) * 100 if row['AF RNs'] != 0 else 0.0,
                 axis=1
             )
             
             merged_df['Abs Rev Accuracy'] = merged_df.apply(
-                lambda row: 100.0 if row['GL Rev'] == 0 and row['Juyo Rev'] == 0 else 
-                            (1 - abs(row['Rev Diff']) / row['GL Rev']) * 100 if row['GL Rev'] != 0 else 0.0,
+                lambda row: 100.0 if row['AF Rev'] == 0 and row['Juyo Rev'] == 0 else 
+                            (1 - abs(row['Rev Diff']) / row['AF Rev']) * 100 if row['AF Rev'] != 0 else 0.0,
                 axis=1
             )
 
@@ -210,10 +210,10 @@ def main():
             current_date = pd.to_datetime('today').normalize()  # Get the current date without the time part
             past_mask = merged_df['date'] < current_date
             future_mask = merged_df['date'] >= current_date
-            past_rooms_accuracy = (1 - (abs(merged_df.loc[past_mask, 'RN Diff']).sum() / merged_df.loc[past_mask, 'GL RNs'].sum())) * 100
-            past_revenue_accuracy = (1 - (abs(merged_df.loc[past_mask, 'Rev Diff']).sum() / merged_df.loc[past_mask, 'GL Rev'].sum())) * 100
-            future_rooms_accuracy = (1 - (abs(merged_df.loc[future_mask, 'RN Diff']).sum() / merged_df.loc[future_mask, 'GL RNs'].sum())) * 100
-            future_revenue_accuracy = (1 - (abs(merged_df.loc[future_mask, 'Rev Diff']).sum() / merged_df.loc[future_mask, 'GL Rev'].sum())) * 100
+            past_rooms_accuracy = (1 - (abs(merged_df.loc[past_mask, 'RN Diff']).sum() / merged_df.loc[past_mask, 'AF RNs'].sum())) * 100
+            past_revenue_accuracy = (1 - (abs(merged_df.loc[past_mask, 'Rev Diff']).sum() / merged_df.loc[past_mask, 'AF Rev'].sum())) * 100
+            future_rooms_accuracy = (1 - (abs(merged_df.loc[future_mask, 'RN Diff']).sum() / merged_df.loc[future_mask, 'AF RNs'].sum())) * 100
+            future_revenue_accuracy = (1 - (abs(merged_df.loc[future_mask, 'Rev Diff']).sum() / merged_df.loc[future_mask, 'AF Rev'].sum())) * 100
             
             # Display accuracy matrix in a table within a container for width control
             accuracy_data = {
@@ -272,7 +272,7 @@ def main():
             st.markdown("### Daily Variance Detail", unsafe_allow_html=True)
             detail_container = st.container()
             with detail_container:
-                formatted_df = merged_df[['date', 'GL RNs', 'GL Rev', 'Juyo RN', 'Juyo Rev', 'RN Diff', 'Rev Diff', 'Abs RN Accuracy', 'Abs Rev Accuracy']]
+                formatted_df = merged_df[['date', 'AF RNs', 'AF Rev', 'Juyo RN', 'Juyo Rev', 'RN Diff', 'Rev Diff', 'Abs RN Accuracy', 'Abs Rev Accuracy']]
                 styled_df = formatted_df.style.applymap(color_scale, subset=['Abs RN Accuracy', 'Abs Rev Accuracy']).set_properties(**{'text-align': 'center'})
                 st.table(styled_df)
             
