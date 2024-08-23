@@ -6,13 +6,17 @@ from plotly.subplots import make_subplots
 from io import BytesIO
 
 # Set page layout to wide
-st.set_page_config(layout="wide", page_title="Opera Daily Variance and Accuracy Calculator")
+st.set_page_config(layout="wide", page_title="Guestline Daily Variance and Accuracy Calculator")
 
 # Define the function to read from XLSX
-def read_xlsx(file, sheet_name):
-    df = pd.read_excel(file, sheet_name=sheet_name)
+def read_xlsx(file, sheet_name=None):
+    if sheet_name:
+        df = pd.read_excel(file, sheet_name=sheet_name)
+    else:
+        df = pd.read_excel(file)  # This reads the first sheet by default
+    
     df = df[['Date', 'Total', 'TotalRevenue']]  # Assume columns are named exactly this
-    df.columns = ['date', 'HF RNs', 'HF Rev']  # Rename columns for consistency
+    df.columns = ['date', 'GL RNs', 'GL Rev']  # Rename columns for consistency
     df['date'] = pd.to_datetime(df['date']).dt.date
     return df
 
@@ -77,8 +81,8 @@ def create_excel_download(combined_df, base_filename, past_accuracy_rn, past_acc
 
             # Format columns in the "Daily Variance Detail" sheet
             worksheet_combined.set_column('A:A', None, format_whole)  # Date
-            worksheet_combined.set_column('B:B', None, format_whole)  # HF RNs
-            worksheet_combined.set_column('C:C', None, format_number)  # HF Rev
+            worksheet_combined.set_column('B:B', None, format_whole)  # GL RNs
+            worksheet_combined.set_column('C:C', None, format_number)  # GL Rev
             worksheet_combined.set_column('D:D', None, format_whole)  # Juyo RN
             worksheet_combined.set_column('E:E', None, format_number)  # Juyo Rev
             worksheet_combined.set_column('F:F', None, format_whole)  # RN Diff
@@ -106,21 +110,21 @@ def create_excel_download(combined_df, base_filename, past_accuracy_rn, past_acc
 # Streamlit application
 def main():
     # Center the title using markdown with HTML
-    st.markdown("<h1 style='text-align: center;'> Opera Daily Variance and Accuracy Calculator</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'> Guestline Daily Variance and Accuracy Calculator</h1>", unsafe_allow_html=True)
     # Note/warning box with matching colors
-    st.warning("The reference date of the Daily Totals Extract should be equal to the latest History and Forecast file date.")
+    st.warning("The reference date of the Daily Totals Extract should be equal to the latest Guestline file date.")
     # File uploaders in columns
     col1, col2 = st.columns(2)
     with col1:
         xlsx_file = st.file_uploader("Upload History and Forecast .xlsx", type=['xlsx'])
-        hotel_code = st.text_input("Enter Hotel Code (Sheet Name):")
+        hotel_code = st.text_input("Enter Hotel Code (Sheet Name) - optional if the file contains a single sheet:")
     with col2:
         csv_file = st.file_uploader("Upload Daily Totals Extract from Support UI", type=['csv'])
 
     # When files are uploaded and hotel code is provided
-    if xlsx_file and csv_file and hotel_code:
-        # Read the specified sheet from the XLSX file
-        xlsx_df = read_xlsx(xlsx_file, hotel_code)
+    if xlsx_file and csv_file:
+        # Read the specified sheet from the XLSX file, or default to the first sheet
+        xlsx_df = read_xlsx(xlsx_file, hotel_code if hotel_code else None)
         
         # Process CSV
         csv_df = pd.read_csv(csv_file, delimiter=';', quotechar='"')
@@ -140,19 +144,19 @@ def main():
         merged_df = pd.merge(xlsx_df, csv_df, left_on='date', right_on='arrivalDate')
         
         # Calculate discrepancies for rooms and revenue
-        merged_df['RN Diff'] = merged_df['Juyo RN'] - merged_df['HF RNs']
-        merged_df['Rev Diff'] = merged_df['Juyo Rev'] - merged_df['HF Rev']
+        merged_df['RN Diff'] = merged_df['Juyo RN'] - merged_df['GL RNs']
+        merged_df['Rev Diff'] = merged_df['Juyo Rev'] - merged_df['GL Rev']
         
         # Calculate absolute accuracy percentages with handling for 0/0 cases
         merged_df['Abs RN Accuracy'] = merged_df.apply(
-            lambda row: 100.0 if row['HF RNs'] == 0 and row['Juyo RN'] == 0 else 
-                        (1 - abs(row['RN Diff']) / row['HF RNs']) * 100 if row['HF RNs'] != 0 else 0.0,
+            lambda row: 100.0 if row['GL RNs'] == 0 and row['Juyo RN'] == 0 else 
+                        (1 - abs(row['RN Diff']) / row['GL RNs']) * 100 if row['GL RNs'] != 0 else 0.0,
             axis=1
         )
         
         merged_df['Abs Rev Accuracy'] = merged_df.apply(
-            lambda row: 100.0 if row['HF Rev'] == 0 and row['Juyo Rev'] == 0 else 
-                        (1 - abs(row['Rev Diff']) / row['HF Rev']) * 100 if row['HF Rev'] != 0 else 0.0,
+            lambda row: 100.0 if row['GL Rev'] == 0 and row['Juyo Rev'] == 0 else 
+                        (1 - abs(row['Rev Diff']) / row['GL Rev']) * 100 if row['GL Rev'] != 0 else 0.0,
             axis=1
         )
 
@@ -165,10 +169,10 @@ def main():
         current_date = pd.to_datetime('today').normalize()  # Get the current date without the time part
         past_mask = merged_df['date'] < current_date
         future_mask = merged_df['date'] >= current_date
-        past_rooms_accuracy = (1 - (abs(merged_df.loc[past_mask, 'RN Diff']).sum() / merged_df.loc[past_mask, 'HF RNs'].sum())) * 100
-        past_revenue_accuracy = (1 - (abs(merged_df.loc[past_mask, 'Rev Diff']).sum() / merged_df.loc[past_mask, 'HF Rev'].sum())) * 100
-        future_rooms_accuracy = (1 - (abs(merged_df.loc[future_mask, 'RN Diff']).sum() / merged_df.loc[future_mask, 'HF RNs'].sum())) * 100
-        future_revenue_accuracy = (1 - (abs(merged_df.loc[future_mask, 'Rev Diff']).sum() / merged_df.loc[future_mask, 'HF Rev'].sum())) * 100
+        past_rooms_accuracy = (1 - (abs(merged_df.loc[past_mask, 'RN Diff']).sum() / merged_df.loc[past_mask, 'GL RNs'].sum())) * 100
+        past_revenue_accuracy = (1 - (abs(merged_df.loc[past_mask, 'Rev Diff']).sum() / merged_df.loc[past_mask, 'GL Rev'].sum())) * 100
+        future_rooms_accuracy = (1 - (abs(merged_df.loc[future_mask, 'RN Diff']).sum() / merged_df.loc[future_mask, 'GL RNs'].sum())) * 100
+        future_revenue_accuracy = (1 - (abs(merged_df.loc[future_mask, 'Rev Diff']).sum() / merged_df.loc[future_mask, 'GL Rev'].sum())) * 100
         
         # Display accuracy matrix in a table within a container for width control
         accuracy_data = {
@@ -227,7 +231,7 @@ def main():
         st.markdown("### Daily Variance Detail", unsafe_allow_html=True)
         detail_container = st.container()
         with detail_container:
-            formatted_df = merged_df[['date', 'HF RNs', 'HF Rev', 'Juyo RN', 'Juyo Rev', 'RN Diff', 'Rev Diff', 'Abs RN Accuracy', 'Abs Rev Accuracy']]
+            formatted_df = merged_df[['date', 'GL RNs', 'GL Rev', 'Juyo RN', 'Juyo Rev', 'RN Diff', 'Rev Diff', 'Abs RN Accuracy', 'Abs Rev Accuracy']]
             styled_df = formatted_df.style.applymap(color_scale, subset=['Abs RN Accuracy', 'Abs Rev Accuracy']).set_properties(**{'text-align': 'center'})
             st.table(styled_df)
         
