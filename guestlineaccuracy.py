@@ -30,9 +30,11 @@ def read_data(file, sheet_name=None):
     df.columns = ['date', 'AF RNs', 'AF Rev']  # Rename columns for consistency
     
     try:
-        # Adjust to support both 'dd/mm/yyyy' and 'dd/mm/yyyy HH:MM' formats
-        df['date'] = pd.to_datetime(df['date'], format='%d/%m/%Y %H:%M', errors='coerce').fillna(
-            pd.to_datetime(df['date'], format='%d/%m/%Y', errors='coerce')
+        # Handle multiple date formats: 'dd/mm/yyyy HH:MM', 'dd/mm/yyyy', and 'd/m/yy'
+        df['date'] = (
+            pd.to_datetime(df['date'], format='%d/%m/%Y %H:%M', errors='coerce')
+            .fillna(pd.to_datetime(df['date'], format='%d/%m/%Y', errors='coerce'))
+            .fillna(pd.to_datetime(df['date'], format='%d/%m/%y', errors='coerce'))
         ).dt.date
     except Exception as e:
         raise ValueError(f"Error converting 'Date' column to datetime: {e}")
