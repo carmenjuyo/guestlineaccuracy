@@ -25,13 +25,15 @@ def read_data(file, sheet_name=None):
     for col in expected_columns:
         if col not in df.columns:
             raise ValueError(f"Expected column '{col}' not found in the uploaded file.")
-
+    
     df = df[expected_columns]
     df.columns = ['date', 'AF RNs', 'AF Rev']  # Rename columns for consistency
     
     try:
-        # Adjusted to ignore the time component in the date format
-        df['date'] = pd.to_datetime(df['date'], format='%d/%m/%Y %H:%M', errors='coerce').dt.date
+        # Adjust to support both 'dd/mm/yyyy' and 'dd/mm/yyyy HH:MM' formats
+        df['date'] = pd.to_datetime(df['date'], format='%d/%m/%Y %H:%M', errors='coerce').fillna(
+            pd.to_datetime(df['date'], format='%d/%m/%Y', errors='coerce')
+        ).dt.date
     except Exception as e:
         raise ValueError(f"Error converting 'Date' column to datetime: {e}")
     
